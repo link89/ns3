@@ -91,6 +91,27 @@ Neighbors::Update (Ipv4Address addr, Time expire)
   Purge ();
 }
 
+void
+Neighbors::Update (Ipv4Address addr, Time expire, Vector2D pos)
+{
+  for (std::vector<Neighbor>::iterator i = m_nb.begin (); i != m_nb.end (); ++i)
+    if (i->m_neighborAddress == addr)
+      {
+        i->m_expireTime
+          = std::max (expire + Simulator::Now (), i->m_expireTime);
+        i->m_pos.x = pos.x;
+        i->m_pos.y = pos.y;
+        if (i->m_hardwareAddress == Mac48Address ())
+          i->m_hardwareAddress = LookupMacAddress (i->m_neighborAddress);
+        return;
+      }
+
+  NS_LOG_LOGIC ("Open link to " << addr);
+  Neighbor neighbor (addr, LookupMacAddress (addr), expire + Simulator::Now (), pos);
+  m_nb.push_back (neighbor);
+  Purge ();
+}
+
 struct CloseNeighbor
 {
   bool operator() (const Neighbors::Neighbor & nb) const

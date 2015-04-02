@@ -1527,7 +1527,7 @@ RoutingProtocol::ProcessHello (RrepHeader const & rrepHeader, Ipv4Address receiv
     }
   if (EnableHello)
     {
-      m_nb.Update (rrepHeader.GetDst (), Time (AllowedHelloLoss * HelloInterval));
+      m_nb.Update (rrepHeader.GetDst (), Time (AllowedHelloLoss * HelloInterval), rrepHeader.GetPosition());
     }
 }
 

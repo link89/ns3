@@ -35,6 +35,7 @@
 #include "ns3/callback.h"
 #include "ns3/wifi-mac-header.h"
 #include "ns3/arp-cache.h"
+#include "ns3/vector.h"
 #include <vector>
 
 namespace ns3
@@ -58,10 +59,17 @@ public:
     Mac48Address m_hardwareAddress;
     Time m_expireTime;
     bool close;
+    Vector2D m_pos;
 
     Neighbor (Ipv4Address ip, Mac48Address mac, Time t) :
       m_neighborAddress (ip), m_hardwareAddress (mac), m_expireTime (t),
-      close (false)
+      close (false), m_pos()
+    {
+    }
+
+    Neighbor (Ipv4Address ip, Mac48Address mac, Time t, Vector2D pos) :
+      m_neighborAddress (ip), m_hardwareAddress (mac), m_expireTime (t),
+      close (false), m_pos(pos.x, pos.y)
     {
     }
   };
@@ -71,6 +79,7 @@ public:
   bool IsNeighbor (Ipv4Address addr);
   /// Update expire time for entry with address addr, if it exists, else add new entry
   void Update (Ipv4Address addr, Time expire);
+  void Update (Ipv4Address addr, Time expire, Vector2D pos);
   /// Remove all expired entries
   void Purge ();
   /// Schedule m_ntimer.
