@@ -44,7 +44,8 @@ enum MessageType
   AODVTYPE_RREQ  = 1,   //!< AODVTYPE_RREQ
   AODVTYPE_RREP  = 2,   //!< AODVTYPE_RREP
   AODVTYPE_RERR  = 3,   //!< AODVTYPE_RERR
-  AODVTYPE_RREP_ACK = 4 //!< AODVTYPE_RREP_ACK
+  AODVTYPE_RREP_ACK = 4, //!< AODVTYPE_RREP_ACK
+  GPSRTYPE_POS   = 5
 };
 
 /**
@@ -177,7 +178,7 @@ public:
   RrepHeader (uint8_t prefixSize = 0, uint8_t hopCount = 0, Ipv4Address dst =
                 Ipv4Address (), uint32_t dstSeqNo = 0, Ipv4Address origin =
                 Ipv4Address (), Time lifetime = MilliSeconds (0),
-                Vector2D pos = Vector2D(1.1, 1.1));
+                Vector2D pos = Vector2D());
   // Header serialization/deserialization
   static TypeId GetTypeId ();
   TypeId GetInstanceTypeId () const;
@@ -197,7 +198,7 @@ public:
   Ipv4Address GetOrigin () const { return m_origin; }
   void SetLifeTime (Time t);
   Time GetLifeTime () const;
-  void SetPosition (Vector2D);
+  void SetPosition (Vector2D pos);
   Vector2D GetPosition () const;
 
   // Flags
@@ -316,6 +317,40 @@ private:
 };
 
 std::ostream & operator<< (std::ostream & os, RerrHeader const &);
+
+//gpsr position header
+class PosHeader: public Header
+{
+public:
+  /// c-tor
+  PosHeader (Vector2D dstPos = Vector2D(), Vector2D failPos = Vector2D());
+  // Header serialization/deserialization
+  static TypeId GetTypeId ();
+  TypeId GetInstanceTypeId () const;
+  uint32_t GetSerializedSize () const;
+  void Serialize (Buffer::Iterator start) const;
+  uint32_t Deserialize (Buffer::Iterator start);
+  void Print (std::ostream &os) const;
+
+  // Fields
+  void SetDstPosition (Vector2D pos);
+  Vector2D GetDstPosition () const;
+  void SetFailPosition (Vector2D pos);
+  Vector2D GetFailPosition () const;
+
+  // Flags
+  void SetFail (bool f);
+  bool GetFail () const;
+
+  bool operator== (PosHeader const & o) const;
+private:
+  uint8_t       m_flags;                  ///< A - greedty forward fail flag
+  Vector2D      m_dstPos;
+  Vector2D      m_failPos;
+};
+
+std::ostream & operator<< (std::ostream & os, PosHeader const &);
+
 }
 }
 #endif /* AODVPACKET_H */

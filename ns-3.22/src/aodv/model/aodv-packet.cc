@@ -81,6 +81,7 @@ TypeHeader::Deserialize (Buffer::Iterator start)
     case AODVTYPE_RREP:
     case AODVTYPE_RERR:
     case AODVTYPE_RREP_ACK:
+    case GPSRTYPE_POS:
       {
         m_type = (MessageType) type;
         break;
@@ -116,6 +117,11 @@ TypeHeader::Print (std::ostream &os) const
     case AODVTYPE_RREP_ACK:
       {
         os << "RREP_ACK";
+        break;
+      }
+    case GPSRTYPE_POS:
+      {
+        os << "GPSR_POS";
         break;
       }
     default:
@@ -658,6 +664,147 @@ RerrHeader::operator== (RerrHeader const & o ) const
 
 std::ostream &
 operator<< (std::ostream & os, RerrHeader const & h )
+{
+  h.Print (os);
+  return os;
+}
+
+//-----------------------------------------------------------------------------
+// Position
+//-----------------------------------------------------------------------------
+
+
+PosHeader::PosHeader (Vector2D dstPos, Vector2D failPos) :
+    m_flags (0), m_dstPos (dstPos.x, dstPos.y),
+    m_failPos(failPos.x, failPos.y)
+{
+}
+
+NS_OBJECT_ENSURE_REGISTERED (PosHeader);
+
+TypeId
+PosHeader::GetTypeId ()
+{
+  static TypeId tid = TypeId ("ns3::aodv::PosHeader")
+    .SetParent<Header> ()
+    .AddConstructor<PosHeader> ()
+  ;
+  return tid;
+}
+
+TypeId
+PosHeader::GetInstanceTypeId () const
+{
+  return GetTypeId ();
+}
+
+uint32_t
+PosHeader::GetSerializedSize () const
+{
+  return 1 + 32;
+}
+
+void
+PosHeader::Serialize (Buffer::Iterator i) const
+{
+  i.WriteU8 (m_flags);
+
+  uint64_t buf;
+  memcpy(&buf, &m_dstPos.x, 8);
+  i.WriteU64 (buf);
+  memcpy(&buf, &m_dstPos.y, 8);
+  i.WriteU64 (buf);
+  memcpy(&buf, &m_failPos.x, 8);
+  i.WriteU64 (buf);
+  memcpy(&buf, &m_failPos.y, 8);
+  i.WriteU64 (buf);
+}
+
+uint32_t
+PosHeader::Deserialize (Buffer::Iterator start)
+{
+  Buffer::Iterator i = start;
+
+  m_flags = i.ReadU8 ();
+
+  uint64_t buf;
+  buf = i.ReadU64();
+  memcpy(&m_dstPos.x, &buf, 8);
+  buf = i.ReadU64();
+  memcpy(&m_dstPos.y, &buf, 8);
+  buf = i.ReadU64();
+  memcpy(&m_failPos.x, &buf, 8);
+  buf = i.ReadU64();
+  memcpy(&m_failPos.y, &buf, 8);
+
+  uint32_t dist = i.GetDistanceFrom (start);
+  NS_ASSERT (dist == GetSerializedSize ());
+  return dist;
+}
+
+void
+PosHeader::Print (std::ostream &os) const
+{
+  os << " destination position " << m_dstPos << " ";
+  if (GetFail())
+      os << " fail position " << m_failPos << " ";
+}
+
+void
+PosHeader::SetDstPosition (Vector2D pos)
+{
+  m_dstPos.x = pos.x;
+  m_dstPos.y = pos.y;
+}
+
+Vector2D
+PosHeader::GetDstPosition () const
+{
+  Vector2D pos(m_dstPos.x, m_dstPos.y);
+  return pos;
+}
+
+void
+PosHeader::SetFailPosition (Vector2D pos)
+{
+  m_failPos.x = pos.x;
+  m_failPos.y = pos.y;
+}
+
+Vector2D
+PosHeader::GetFailPosition () const
+{
+  Vector2D pos(m_failPos.x, m_failPos.y);
+  return pos;
+}
+
+void
+PosHeader::SetFail (bool f)
+{
+  if (f)
+    m_flags |= (1 << 1);
+  else
+    m_flags &= ~(1 << 1);
+}
+
+bool
+PosHeader::GetFail() const
+{
+  return (m_flags & (1 << 1));
+}
+
+bool
+PosHeader::operator== (PosHeader const & o) const
+{
+  return (m_flags == o.m_flags &&
+          m_dstPos.x == o.m_dstPos.x &&
+          m_dstPos.y == o.m_dstPos.y &&
+          m_failPos.x == o.m_failPos.x &&
+          m_failPos.y == o.m_failPos.y);
+}
+
+std::ostream &
+operator<< (std::ostream & os, PosHeader const & h)
 {
   h.Print (os);
   return os;

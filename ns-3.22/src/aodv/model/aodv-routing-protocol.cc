@@ -1045,6 +1045,9 @@ RoutingProtocol::RecvAodv (Ptr<Socket> socket)
         RecvReplyAck (sender);
         break;
       }
+    case GPSRTYPE_POS:
+      {
+      }
     }
 }
 
