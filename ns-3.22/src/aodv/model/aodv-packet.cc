@@ -278,9 +278,10 @@ RreqHeader::operator== (RreqHeader const & o) const
 //-----------------------------------------------------------------------------
 
 RrepHeader::RrepHeader (uint8_t prefixSize, uint8_t hopCount, Ipv4Address dst,
-                        uint32_t dstSeqNo, Ipv4Address origin, Time lifeTime) :
+                        uint32_t dstSeqNo, Ipv4Address origin, Time lifeTime,
+                        Vector2D pos) :
   m_flags (0), m_prefixSize (prefixSize), m_hopCount (hopCount),
-  m_dst (dst), m_dstSeqNo (dstSeqNo), m_origin (origin)
+  m_dst (dst), m_dstSeqNo (dstSeqNo), m_origin (origin), m_pos(pos.x, pos.y)
 {
   m_lifeTime = uint32_t (lifeTime.GetMilliSeconds ());
 }
@@ -306,7 +307,7 @@ RrepHeader::GetInstanceTypeId () const
 uint32_t
 RrepHeader::GetSerializedSize () const
 {
-  return 19;
+  return 19 + 16;
 }
 
 void
@@ -319,6 +320,12 @@ RrepHeader::Serialize (Buffer::Iterator i) const
   i.WriteHtonU32 (m_dstSeqNo);
   WriteTo (i, m_origin);
   i.WriteHtonU32 (m_lifeTime);
+
+  uint64_t buf;
+  memcpy(&buf, &m_pos.x, 8);
+  i.WriteU64 (buf);
+  memcpy(&buf, &m_pos.y, 8);
+  i.WriteU64 (buf);
 }
 
 uint32_t
@@ -333,6 +340,12 @@ RrepHeader::Deserialize (Buffer::Iterator start)
   m_dstSeqNo = i.ReadNtohU32 ();
   ReadFrom (i, m_origin);
   m_lifeTime = i.ReadNtohU32 ();
+
+  uint64_t buf;
+  buf = i.ReadU64();
+  memcpy(&m_pos.x, &buf, 8);
+  buf = i.ReadU64();
+  memcpy(&m_pos.y, &buf, 8);
 
   uint32_t dist = i.GetDistanceFrom (start);
   NS_ASSERT (dist == GetSerializedSize ());

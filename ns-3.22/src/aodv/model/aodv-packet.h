@@ -34,6 +34,7 @@
 #include "ns3/ipv4-address.h"
 #include <map>
 #include "ns3/nstime.h"
+#include "ns3/vector.h"
 
 namespace ns3 {
 namespace aodv {
@@ -175,7 +176,8 @@ public:
   /// c-tor
   RrepHeader (uint8_t prefixSize = 0, uint8_t hopCount = 0, Ipv4Address dst =
                 Ipv4Address (), uint32_t dstSeqNo = 0, Ipv4Address origin =
-                Ipv4Address (), Time lifetime = MilliSeconds (0));
+                Ipv4Address (), Time lifetime = MilliSeconds (0),
+                Vector2D pos = Vector2D(1.1, 1.1));
   // Header serialization/deserialization
   static TypeId GetTypeId ();
   TypeId GetInstanceTypeId () const;
@@ -214,6 +216,8 @@ private:
   uint32_t      m_dstSeqNo;         ///< Destination Sequence Number
   Ipv4Address     m_origin;           ///< Source IP Address
   uint32_t      m_lifeTime;         ///< Lifetime (in milliseconds)
+  //gpsr
+  Vector2D      m_pos;
 };
 
 std::ostream & operator<< (std::ostream & os, RrepHeader const &);
