@@ -378,6 +378,20 @@ RrepHeader::GetLifeTime () const
 }
 
 void
+RrepHeader::SetPosition (Vector2D pos)
+{
+  m_pos.x = pos.x;
+  m_pos.y = pos.y;
+}
+
+Vector2D
+RrepHeader::GetPosition () const
+{
+  Vector2D pos(m_pos.x, m_pos.y);
+  return pos;
+}
+
+void
 RrepHeader::SetAckRequired (bool f)
 {
   if (f)

@@ -197,6 +197,8 @@ public:
   Ipv4Address GetOrigin () const { return m_origin; }
   void SetLifeTime (Time t);
   Time GetLifeTime () const;
+  void SetPosition (Vector2D);
+  Vector2D GetPosition () const;
 
   // Flags
   void SetAckRequired (bool f);

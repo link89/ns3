@@ -39,6 +39,7 @@
 #include "ns3/adhoc-wifi-mac.h"
 #include "ns3/string.h"
 #include "ns3/pointer.h"
+#include "ns3/mobility-model.h"
 #include <algorithm>
 #include <limits>
 
@@ -1677,12 +1678,28 @@ RoutingProtocol::SendHello ()
    *   Hop Count                      0
    *   Lifetime                       AllowedHelloLoss * HelloInterval
    */
+
+  //Get Position from node
+
+  Vector2D pos;
+  if (m_ipv4) {
+      Ptr<Node> m_node = m_ipv4->GetObject<Node> ();
+      NS_ASSERT(m_node);
+      Ptr<MobilityModel> m_mob = m_node->GetObject<MobilityModel> ();
+      if (m_mob) {
+          Vector3D _pos = m_mob->GetPosition();
+          pos.x = _pos.x;
+          pos.y = _pos.y;
+      }
+  }
+
   for (std::map<Ptr<Socket>, Ipv4InterfaceAddress>::const_iterator j = m_socketAddresses.begin (); j != m_socketAddresses.end (); ++j)
     {
       Ptr<Socket> socket = j->first;
       Ipv4InterfaceAddress iface = j->second;
       RrepHeader helloHeader (/*prefix size=*/ 0, /*hops=*/ 0, /*dst=*/ iface.GetLocal (), /*dst seqno=*/ m_seqNo,
-                                               /*origin=*/ iface.GetLocal (),/*lifetime=*/ Time (AllowedHelloLoss * HelloInterval));
+                                               /*origin=*/ iface.GetLocal (),/*lifetime=*/ Time (AllowedHelloLoss * HelloInterval),
+                                               /*pos=*/ pos);
       Ptr<Packet> packet = Create<Packet> ();
       packet->AddHeader (helloHeader);
       TypeHeader tHeader (AODVTYPE_RREP);
