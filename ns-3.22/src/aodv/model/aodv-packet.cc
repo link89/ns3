@@ -793,6 +793,21 @@ PosHeader::GetFail() const
   return (m_flags & (1 << 1));
 }
 
+void
+PosHeader::SetBroadcast (bool f)
+{
+  if (f)
+    m_flags |= (1 << 2);
+  else
+    m_flags &= ~(1 << 2);
+}
+
+bool
+PosHeader::GetBroadcast() const
+{
+  return (m_flags & (1 << 2));
+}
+
 bool
 PosHeader::operator== (PosHeader const & o) const
 {

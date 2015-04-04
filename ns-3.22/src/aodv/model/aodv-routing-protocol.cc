@@ -40,6 +40,7 @@
 #include "ns3/string.h"
 #include "ns3/pointer.h"
 #include "ns3/mobility-model.h"
+#include "ns3/node-list.h"
 #include <algorithm>
 #include <limits>
 
@@ -324,6 +325,66 @@ RoutingProtocol::Start ()
   m_rerrRateLimitTimer.SetFunction (&RoutingProtocol::RerrRateLimitTimerExpire,
                                     this);
   m_rerrRateLimitTimer.Schedule (Seconds (1));
+
+}
+
+Ptr<Node>
+RoutingProtocol::GetNodeFromIpv4(Ipv4Address addr)
+{
+  for (NodeList::Iterator i = NodeList::Begin(); i != NodeList::End(); ++i) {
+    Ptr<Ipv4> ipv4 = (*i)->GetObject<Ipv4>();
+
+    for (uint32_t interface = 0; interface < ipv4->GetNInterfaces(); interface++) {
+      for (uint32_t count = 0; count < ipv4->GetNAddresses(interface); count++) {
+        Ipv4InterfaceAddress i_addr = ipv4->GetAddress(interface, count);
+        Ipv4Address ipv4_addr = i_addr.GetLocal();
+
+        if (ipv4_addr == addr) {
+          return *i;
+        }
+      }
+    }
+  }
+  return NULL;
+}
+
+void
+RoutingProtocol::AddPositionHeader (Ptr<Packet> packet,
+                               Ipv4Address source, Ipv4Address destination,
+                               uint8_t protocol, Ptr<Ipv4Route> route)
+{
+  //get position of current node
+  Vector2D pos;
+  NS_ASSERT(m_ipv4);
+  Ptr<Node> m_node = m_ipv4->GetObject<Node> ();
+  NS_ASSERT(m_node);
+  Ptr<MobilityModel> m_mob = m_node->GetObject<MobilityModel> ();
+  NS_ASSERT(m_mob);
+  Vector3D _pos = m_mob->GetPosition();
+  pos.x = _pos.x;
+  pos.y = _pos.y;
+
+  bool isBroadcast = false;
+  for (uint32_t interface = 0; interface < m_ipv4->GetNInterfaces(); interface++) {
+    for (uint32_t count = 0; count < m_ipv4->GetNAddresses(interface); count++) {
+      if (destination == m_ipv4->GetAddress(interface, count).GetBroadcast()) {
+        isBroadcast = true;
+        goto next;
+      }
+    }
+  }
+next:
+  if (destination == Ipv4Address("255.255.255.255"))
+      isBroadcast = true;
+
+  PosHeader posHeader;
+  posHeader.SetBroadcast(isBroadcast);
+  if (!isBroadcast) {
+    posHeader.SetDstPosition(pos);
+  }
+  packet->AddHeader (posHeader);
+  TypeHeader tHeader (GPSRTYPE_POS);
+  packet->AddHeader (tHeader);
 
 }
 

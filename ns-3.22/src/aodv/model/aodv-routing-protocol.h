@@ -62,6 +62,10 @@ public:
   virtual void DoDispose ();
 
   // Inherited from Ipv4RoutingProtocol
+  Ptr<Node> GetNodeFromIpv4(Ipv4Address addr);
+  void AddPositionHeader (Ptr<Packet> packet,
+                   Ipv4Address source, Ipv4Address destination,
+                   uint8_t protocol, Ptr<Ipv4Route> route);
   Ptr<Ipv4Route> RouteOutput (Ptr<Packet> p, const Ipv4Header &header, Ptr<NetDevice> oif, Socket::SocketErrno &sockerr);
   bool RouteInput (Ptr<const Packet> p, const Ipv4Header &header, Ptr<const NetDevice> idev,
                    UnicastForwardCallback ucb, MulticastForwardCallback mcb,

@@ -341,6 +341,8 @@ public:
   // Flags
   void SetFail (bool f);
   bool GetFail () const;
+  void SetBroadcast (bool f);
+  bool GetBroadcast () const;
 
   bool operator== (PosHeader const & o) const;
 private:
