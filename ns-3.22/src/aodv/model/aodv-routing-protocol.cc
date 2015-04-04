@@ -388,6 +388,18 @@ next:
 
 }
 
+void
+RoutingProtocol::SetDownTarget (IpL4Protocol::DownTargetCallback callback)
+{
+  m_downTarget = callback;
+}
+
+IpL4Protocol::DownTargetCallback
+RoutingProtocol::GetDownTarget (void) const
+{
+  return m_downTarget;
+}
+
 Ptr<Ipv4Route>
 RoutingProtocol::RouteOutput (Ptr<Packet> p, const Ipv4Header &header,
                               Ptr<NetDevice> oif, Socket::SocketErrno &sockerr)

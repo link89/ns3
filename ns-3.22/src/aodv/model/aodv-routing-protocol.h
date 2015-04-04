@@ -39,6 +39,7 @@
 #include "ns3/ipv4-routing-protocol.h"
 #include "ns3/ipv4-interface.h"
 #include "ns3/ipv4-l3-protocol.h"
+#include "ns3/ip-l4-protocol.h"
 #include <map>
 
 namespace ns3
@@ -66,6 +67,8 @@ public:
   void AddPositionHeader (Ptr<Packet> packet,
                    Ipv4Address source, Ipv4Address destination,
                    uint8_t protocol, Ptr<Ipv4Route> route);
+  void SetDownTarget (IpL4Protocol::DownTargetCallback callback);
+  IpL4Protocol::DownTargetCallback GetDownTarget (void) const;
   Ptr<Ipv4Route> RouteOutput (Ptr<Packet> p, const Ipv4Header &header, Ptr<NetDevice> oif, Socket::SocketErrno &sockerr);
   bool RouteInput (Ptr<const Packet> p, const Ipv4Header &header, Ptr<const NetDevice> idev,
                    UnicastForwardCallback ucb, MulticastForwardCallback mcb,
@@ -272,6 +275,8 @@ private:
   Ptr<UniformRandomVariable> m_uniformRandomVariable;  
   /// Keep track of the last bcast time
   Time m_lastBcastTime;
+
+  IpL4Protocol::DownTargetCallback m_downTarget;
 };
 
 }
