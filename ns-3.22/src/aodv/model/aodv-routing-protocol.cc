@@ -333,6 +333,8 @@ RoutingProtocol::GetNodeFromIpv4(Ipv4Address addr)
 {
   for (NodeList::Iterator i = NodeList::Begin(); i != NodeList::End(); ++i) {
     Ptr<Ipv4> ipv4 = (*i)->GetObject<Ipv4>();
+    if (!ipv4)
+      continue;
 
     for (uint32_t interface = 0; interface < ipv4->GetNInterfaces(); interface++) {
       for (uint32_t count = 0; count < ipv4->GetNAddresses(interface); count++) {
@@ -417,6 +419,9 @@ RoutingProtocol::RouteOutput (Ptr<Packet> p, const Ipv4Header &header,
   sockerr = Socket::ERROR_NOTERROR;
   Ptr<Ipv4Route> route;
   Ipv4Address dst = header.GetDestination ();
+  //gpsr code begin
+
+  //gpsr code end
   RoutingTableEntry rt;
   if (m_routingTable.LookupValidRoute (dst, rt))
     {
