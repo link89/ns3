@@ -355,6 +355,8 @@ RoutingProtocol::AddPositionHeader (Ptr<Packet> packet,
                                Ipv4Address source, Ipv4Address destination,
                                uint8_t protocol, Ptr<Ipv4Route> route)
 {
+  //1. capture packet from L4; 2. add header;
+  NS_LOG_DEBUG("AddPositionHeader");
   bool isBroadcast = false;
   for (uint32_t interface = 0; interface < m_ipv4->GetNInterfaces(); interface++) {
     for (uint32_t count = 0; count < m_ipv4->GetNAddresses(interface); count++) {
@@ -384,7 +386,10 @@ next:
     packet->AddHeader (posHeader);
     TypeHeader tHeader (GPSRTYPE_POS);
     packet->AddHeader (tHeader);
+    NS_LOG_DEBUG("AddPositionHeader success, pos = " << pos << " dest ip = " << destination << " packet = " << packet);
   }
+  //3. send packet to L3
+  m_downTarget(packet, source, destination, protocol, route);
 }
 
 void
@@ -420,6 +425,23 @@ RoutingProtocol::RouteOutput (Ptr<Packet> p, const Ipv4Header &header,
   Ptr<Ipv4Route> route;
   Ipv4Address dst = header.GetDestination ();
   //gpsr code begin
+
+  NS_LOG_DEBUG ("RouteOutput packet = " << p);
+  //Ptr<Packet> packet = p->Copy();
+  Ptr<Packet> packet = p;
+  TypeHeader tHeader (GPSRTYPE_POS);
+  packet->PeekHeader (tHeader); // read header rather than remove it
+
+  //handle PosHeader only, ignore other types
+  if (tHeader.IsValid ()) {
+    if (tHeader.Get () == GPSRTYPE_POS) {
+      PosHeader posHeader;
+      packet->RemoveHeader(tHeader);
+      packet->RemoveHeader (posHeader);
+      NS_LOG_DEBUG("posHeader:" << posHeader);
+      //gpsr algorithm runs here ...
+    }
+  }
 
   //gpsr code end
   RoutingTableEntry rt;

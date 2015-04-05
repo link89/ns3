@@ -64,7 +64,7 @@ public:
 
   // Inherited from Ipv4RoutingProtocol
   Ptr<Node> GetNodeFromIpv4(Ipv4Address addr);
-  void AddPositionHeader (Ptr<Packet> packet,
+  virtual void AddPositionHeader  (Ptr<Packet> packet,
                    Ipv4Address source, Ipv4Address destination,
                    uint8_t protocol, Ptr<Ipv4Route> route);
   void SetDownTarget (IpL4Protocol::DownTargetCallback callback);

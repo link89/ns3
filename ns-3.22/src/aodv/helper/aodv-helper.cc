@@ -49,17 +49,17 @@ AodvHelper::Create (Ptr<Node> node) const
   Ptr<UdpL4Protocol> udp = node->GetObject<UdpL4Protocol> ();
   if (udp) {
     agent->SetDownTarget (udp->GetDownTarget ());
-    //udp->SetDownTarget (MakeCallback (&aodv::RoutingProtocol::AddPositionHeader, agent));
+    udp->SetDownTarget (MakeCallback (&aodv::RoutingProtocol::AddPositionHeader, agent));
   }
   Ptr<TcpL4Protocol> tcp = node->GetObject<TcpL4Protocol> ();
   if (tcp) {
     agent->SetDownTarget (tcp->GetDownTarget ());
-    //tcp->SetDownTarget (MakeCallback (&aodv::RoutingProtocol::AddPositionHeader, agent));
+    tcp->SetDownTarget (MakeCallback (&aodv::RoutingProtocol::AddPositionHeader, agent));
   }
   Ptr<Icmpv4L4Protocol> icmp = node->GetObject<Icmpv4L4Protocol> ();
   if (icmp) {
     agent->SetDownTarget (icmp->GetDownTarget ());
-    //icmp->SetDownTarget (MakeCallback (&aodv::RoutingProtocol::AddPositionHeader, agent));
+    icmp->SetDownTarget (MakeCallback (&aodv::RoutingProtocol::AddPositionHeader, agent));
   }
   node->AggregateObject (agent);
   return agent;
