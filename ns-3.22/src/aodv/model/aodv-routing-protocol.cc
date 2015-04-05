@@ -353,17 +353,6 @@ RoutingProtocol::AddPositionHeader (Ptr<Packet> packet,
                                Ipv4Address source, Ipv4Address destination,
                                uint8_t protocol, Ptr<Ipv4Route> route)
 {
-  //get position of current node
-  Vector2D pos;
-  NS_ASSERT(m_ipv4);
-  Ptr<Node> m_node = m_ipv4->GetObject<Node> ();
-  NS_ASSERT(m_node);
-  Ptr<MobilityModel> m_mob = m_node->GetObject<MobilityModel> ();
-  NS_ASSERT(m_mob);
-  Vector3D _pos = m_mob->GetPosition();
-  pos.x = _pos.x;
-  pos.y = _pos.y;
-
   bool isBroadcast = false;
   for (uint32_t interface = 0; interface < m_ipv4->GetNInterfaces(); interface++) {
     for (uint32_t count = 0; count < m_ipv4->GetNAddresses(interface); count++) {
@@ -377,15 +366,23 @@ next:
   if (destination == Ipv4Address("255.255.255.255"))
       isBroadcast = true;
 
-  PosHeader posHeader;
-  posHeader.SetBroadcast(isBroadcast);
   if (!isBroadcast) {
-    posHeader.SetDstPosition(pos);
-  }
-  packet->AddHeader (posHeader);
-  TypeHeader tHeader (GPSRTYPE_POS);
-  packet->AddHeader (tHeader);
+    Vector2D pos;
+    Ptr<Node> dstNode = GetNodeFromIpv4(destination);
+    if (!dstNode)
+      return;
+    Ptr<MobilityModel> dstMob = dstNode->GetObject<MobilityModel> ();
+    NS_ASSERT(dstMob);
+    Vector3D _pos = dstMob->GetPosition();
+    pos.x = _pos.x, pos.y = _pos.y;
 
+    PosHeader posHeader;
+    posHeader.SetBroadcast(isBroadcast);
+    posHeader.SetDstPosition(pos);
+    packet->AddHeader (posHeader);
+    TypeHeader tHeader (GPSRTYPE_POS);
+    packet->AddHeader (tHeader);
+  }
 }
 
 void
