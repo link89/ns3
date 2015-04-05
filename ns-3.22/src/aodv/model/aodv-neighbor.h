@@ -32,6 +32,8 @@
 #include "ns3/simulator.h"
 #include "ns3/timer.h"
 #include "ns3/ipv4-address.h"
+#include "ns3/ipv4-interface-address.h"
+#include "ns3/ipv4-route.h"
 #include "ns3/callback.h"
 #include "ns3/wifi-mac-header.h"
 #include "ns3/arp-cache.h"
@@ -60,6 +62,7 @@ public:
     Time m_expireTime;
     bool close;
     Vector2D m_pos;
+    Ptr<Ipv4Route> m_ipv4Route;
 
     Neighbor (Ipv4Address ip, Mac48Address mac, Time t) :
       m_neighborAddress (ip), m_hardwareAddress (mac), m_expireTime (t),
@@ -67,10 +70,16 @@ public:
     {
     }
 
-    Neighbor (Ipv4Address ip, Mac48Address mac, Time t, Vector2D pos) :
+    Neighbor (Ipv4Address ip, Mac48Address mac, Time t, Vector2D pos,
+              Ptr<NetDevice> dev, Ipv4InterfaceAddress iface) :
       m_neighborAddress (ip), m_hardwareAddress (mac), m_expireTime (t),
       close (false), m_pos(pos.x, pos.y)
     {
+      m_ipv4Route = Create<Ipv4Route> ();
+      m_ipv4Route->SetDestination (ip);
+      m_ipv4Route->SetGateway (ip);
+      m_ipv4Route->SetSource (iface.GetLocal ());
+      m_ipv4Route->SetOutputDevice (dev);
     }
   };
   /// Return expire time for neighbor node with address addr, if exists, else return 0.
@@ -79,7 +88,10 @@ public:
   bool IsNeighbor (Ipv4Address addr);
   /// Update expire time for entry with address addr, if it exists, else add new entry
   void Update (Ipv4Address addr, Time expire);
-  void Update (Ipv4Address addr, Time expire, Vector2D pos);
+  void Update (Ipv4Address addr, Time expire,
+               Vector2D pos, Ptr<NetDevice> dev, Ipv4InterfaceAddress iface);
+  bool BestNeighbor(Vector2D curPos, Vector2D dstPos, Ptr<Ipv4Route> & ipv4Route);
+  bool RecoveryNeighbor(Vector2D curPos, Vector2D dstPos, Vector2D failPos, Ptr<Ipv4Route> & ipv4Route);
   /// Remove all expired entries
   void Purge ();
   /// Schedule m_ntimer.

@@ -29,6 +29,7 @@
 #include "aodv-neighbor.h"
 #include "ns3/log.h"
 #include <algorithm>
+#include <limits>
 
 
 namespace ns3
@@ -92,7 +93,8 @@ Neighbors::Update (Ipv4Address addr, Time expire)
 }
 
 void
-Neighbors::Update (Ipv4Address addr, Time expire, Vector2D pos)
+Neighbors::Update (Ipv4Address addr, Time expire,
+                   Vector2D pos, Ptr<NetDevice> dev, Ipv4InterfaceAddress iface)
 {
   for (std::vector<Neighbor>::iterator i = m_nb.begin (); i != m_nb.end (); ++i)
     if (i->m_neighborAddress == addr)
@@ -107,9 +109,43 @@ Neighbors::Update (Ipv4Address addr, Time expire, Vector2D pos)
       }
 
   NS_LOG_LOGIC ("Open link to " << addr);
-  Neighbor neighbor (addr, LookupMacAddress (addr), expire + Simulator::Now (), pos);
+  Neighbor neighbor (addr, LookupMacAddress (addr), expire + Simulator::Now (),
+                     pos, dev, iface);
   m_nb.push_back (neighbor);
   Purge ();
+}
+
+bool
+Neighbors::BestNeighbor(Vector2D curPos, Vector2D dstPos, Ptr<Ipv4Route> & ipv4Route)
+{
+  double curDist = CalculateDistance(curPos, dstPos);
+  double minDist = std::numeric_limits<double>::max();
+  Neighbor* bestNeighbor;
+
+  bool isBestNeighbor = false;
+  for (std::vector<Neighbor>::iterator i = m_nb.begin (); i != m_nb.end (); ++i) {
+    double toDstDist = CalculateDistance(i->m_pos, dstPos);
+    if (toDstDist < minDist && toDstDist < curDist) {
+      isBestNeighbor = true;
+      minDist = toDstDist;
+      bestNeighbor = &(*i);
+    }
+  }
+
+  if (isBestNeighbor) {
+    ipv4Route = bestNeighbor->m_ipv4Route;
+  }
+
+  return isBestNeighbor;
+}
+
+bool
+Neighbors::RecoveryNeighbor(Vector2D curPos, Vector2D dstPos, Vector2D failPos,
+                            Ptr<Ipv4Route> & ipv4Route)
+{
+  for (std::vector<Neighbor>::iterator i = m_nb.begin (); i != m_nb.end (); ++i) {
+  }
+  return true;
 }
 
 struct CloseNeighbor

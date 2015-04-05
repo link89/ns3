@@ -1583,9 +1583,10 @@ RoutingProtocol::ProcessHello (RrepHeader const & rrepHeader, Ipv4Address receiv
    * create one if necessary.
    */
   RoutingTableEntry toNeighbor;
+
+  Ptr<NetDevice> dev = m_ipv4->GetNetDevice (m_ipv4->GetInterfaceForAddress (receiver));
   if (!m_routingTable.LookupRoute (rrepHeader.GetDst (), toNeighbor))
     {
-      Ptr<NetDevice> dev = m_ipv4->GetNetDevice (m_ipv4->GetInterfaceForAddress (receiver));
       RoutingTableEntry newEntry (/*device=*/ dev, /*dst=*/ rrepHeader.GetDst (), /*validSeqNo=*/ true, /*seqno=*/ rrepHeader.GetDstSeqno (),
                                               /*iface=*/ m_ipv4->GetAddress (m_ipv4->GetInterfaceForAddress (receiver), 0),
                                               /*hop=*/ 1, /*nextHop=*/ rrepHeader.GetDst (), /*lifeTime=*/ rrepHeader.GetLifeTime ());
@@ -1605,7 +1606,8 @@ RoutingProtocol::ProcessHello (RrepHeader const & rrepHeader, Ipv4Address receiv
     }
   if (EnableHello)
     {
-      m_nb.Update (rrepHeader.GetDst (), Time (AllowedHelloLoss * HelloInterval), rrepHeader.GetPosition());
+      m_nb.Update (rrepHeader.GetDst (), Time (AllowedHelloLoss * HelloInterval), rrepHeader.GetPosition(),
+                   dev, m_ipv4->GetAddress (m_ipv4->GetInterfaceForAddress(receiver), 0));
     }
 }
 
