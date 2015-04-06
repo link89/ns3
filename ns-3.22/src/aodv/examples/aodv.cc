@@ -209,7 +209,7 @@ AodvExample::InstallApplications ()
   ping.SetAttribute ("Verbose", BooleanValue (true));
 
   ApplicationContainer p = ping.Install (nodes.Get (0));
-  p.Start (Seconds (0));
+  p.Start (Seconds (2));
   p.Stop (Seconds (totalTime) - Seconds (0.001));
 
   // move node away

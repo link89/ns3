@@ -386,7 +386,8 @@ next:
     packet->AddHeader (posHeader);
     TypeHeader tHeader (GPSRTYPE_POS);
     packet->AddHeader (tHeader);
-    NS_LOG_DEBUG("AddPositionHeader success, pos = " << pos << " dest ip = " << destination << " packet = " << packet);
+    NS_LOG_DEBUG("AddPositionHeader success, pos = " << pos << "from src ip = " << source
+        << " to dest ip = " << destination << " packet = " << packet);
   }
   //3. send packet to L3
   m_downTarget(packet, source, destination, protocol, route);
@@ -427,7 +428,6 @@ RoutingProtocol::RouteOutput (Ptr<Packet> p, const Ipv4Header &header,
   //gpsr code begin
 
   NS_LOG_DEBUG ("RouteOutput packet = " << p);
-  //Ptr<Packet> packet = p->Copy();
   Ptr<Packet> packet = p;
   TypeHeader tHeader (GPSRTYPE_POS);
   packet->PeekHeader (tHeader); // read header rather than remove it
@@ -439,7 +439,35 @@ RoutingProtocol::RouteOutput (Ptr<Packet> p, const Ipv4Header &header,
       packet->RemoveHeader(tHeader);
       packet->RemoveHeader (posHeader);
       NS_LOG_DEBUG("posHeader:" << posHeader);
-      //gpsr algorithm runs here ...
+
+      // gpsr algorithm runs here ...
+      // 1.Get Current Position
+      Vector2D curPos;
+      NS_ASSERT(m_ipv4);
+      Ptr<MobilityModel> m_mob = m_ipv4->GetObject<MobilityModel> ();
+      if (m_mob) {
+        Vector3D _pos = m_mob->GetPosition();
+        curPos.x = _pos.x;
+        curPos.y = _pos.y;
+      }
+
+      if (posHeader.GetFail()) {
+        // recovery mode
+
+      } else {
+        // try greedy forward
+        if (m_nb.BestNeighbor(curPos, posHeader.GetDstPosition(), route)) {
+          NS_LOG_UNCOND("found best neighbor, src = " << route->GetSource() <<
+              " dst = " << route->GetDestination() <<
+              " gw = " << route->GetGateway());
+          //TODO: add posHeader back after handle routine in RouteInput
+
+          return route;
+        } else {
+          //recovery mode
+
+        }
+      }
     }
   }
 
@@ -1781,18 +1809,15 @@ RoutingProtocol::SendHello ()
    *   Lifetime                       AllowedHelloLoss * HelloInterval
    */
 
-  //Get Position from node
+  //Get Current Position
 
   Vector2D pos;
-  if (m_ipv4) {
-      Ptr<Node> m_node = m_ipv4->GetObject<Node> ();
-      NS_ASSERT(m_node);
-      Ptr<MobilityModel> m_mob = m_node->GetObject<MobilityModel> ();
-      if (m_mob) {
-          Vector3D _pos = m_mob->GetPosition();
-          pos.x = _pos.x;
-          pos.y = _pos.y;
-      }
+  NS_ASSERT(m_ipv4);
+  Ptr<MobilityModel> m_mob = m_ipv4->GetObject<MobilityModel> ();
+  if (m_mob) {
+    Vector3D _pos = m_mob->GetPosition();
+    pos.x = _pos.x;
+    pos.y = _pos.y;
   }
 
   for (std::map<Ptr<Socket>, Ipv4InterfaceAddress>::const_iterator j = m_socketAddresses.begin (); j != m_socketAddresses.end (); ++j)

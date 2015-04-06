@@ -26,6 +26,7 @@
 #include "ns3/tcp-l4-protocol.h"
 #include "ns3/udp-l4-protocol.h"
 #include "ns3/icmpv4-l4-protocol.h"
+#include "ns3/log.h"
 
 namespace ns3
 {
@@ -48,16 +49,19 @@ AodvHelper::Create (Ptr<Node> node) const
   Ptr<aodv::RoutingProtocol> agent = m_agentFactory.Create<aodv::RoutingProtocol> ();
   Ptr<UdpL4Protocol> udp = node->GetObject<UdpL4Protocol> ();
   if (udp) {
+    NS_LOG_UNCOND("udp");
     agent->SetDownTarget (udp->GetDownTarget ());
     udp->SetDownTarget (MakeCallback (&aodv::RoutingProtocol::AddPositionHeader, agent));
   }
   Ptr<TcpL4Protocol> tcp = node->GetObject<TcpL4Protocol> ();
   if (tcp) {
+    NS_LOG_UNCOND("tcp");
     agent->SetDownTarget (tcp->GetDownTarget ());
     tcp->SetDownTarget (MakeCallback (&aodv::RoutingProtocol::AddPositionHeader, agent));
   }
   Ptr<Icmpv4L4Protocol> icmp = node->GetObject<Icmpv4L4Protocol> ();
   if (icmp) {
+    NS_LOG_UNCOND("icmp");
     agent->SetDownTarget (icmp->GetDownTarget ());
     icmp->SetDownTarget (MakeCallback (&aodv::RoutingProtocol::AddPositionHeader, agent));
   }

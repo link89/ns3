@@ -101,10 +101,15 @@ Neighbors::Update (Ipv4Address addr, Time expire,
       {
         i->m_expireTime
           = std::max (expire + Simulator::Now (), i->m_expireTime);
-        i->m_pos.x = pos.x;
-        i->m_pos.y = pos.y;
+        i->m_pos = pos;
         if (i->m_hardwareAddress == Mac48Address ())
           i->m_hardwareAddress = LookupMacAddress (i->m_neighborAddress);
+        if (!i->m_ipv4Route)
+          i->m_ipv4Route = Create<Ipv4Route> ();
+        i->m_ipv4Route->SetDestination (addr);
+        i->m_ipv4Route->SetGateway (addr);
+        i->m_ipv4Route->SetSource (iface.GetLocal ());
+        i->m_ipv4Route->SetOutputDevice (dev);
         return;
       }
 
@@ -118,6 +123,9 @@ Neighbors::Update (Ipv4Address addr, Time expire,
 bool
 Neighbors::BestNeighbor(Vector2D curPos, Vector2D dstPos, Ptr<Ipv4Route> & ipv4Route)
 {
+  if (m_nb.empty ())
+    return false;
+
   double curDist = CalculateDistance(curPos, dstPos);
   double minDist = std::numeric_limits<double>::max();
   Neighbor* bestNeighbor;
@@ -125,7 +133,7 @@ Neighbors::BestNeighbor(Vector2D curPos, Vector2D dstPos, Ptr<Ipv4Route> & ipv4R
   bool isBestNeighbor = false;
   for (std::vector<Neighbor>::iterator i = m_nb.begin (); i != m_nb.end (); ++i) {
     double toDstDist = CalculateDistance(i->m_pos, dstPos);
-    if (toDstDist < minDist && toDstDist < curDist) {
+    if (i->m_ipv4Route && toDstDist < minDist && toDstDist < curDist ) {
       isBestNeighbor = true;
       minDist = toDstDist;
       bestNeighbor = &(*i);
@@ -134,6 +142,7 @@ Neighbors::BestNeighbor(Vector2D curPos, Vector2D dstPos, Ptr<Ipv4Route> & ipv4R
 
   if (isBestNeighbor) {
     ipv4Route = bestNeighbor->m_ipv4Route;
+    NS_LOG_DEBUG("best route = " << *ipv4Route << " curDist = " << curDist << " minDist = " << minDist);
   }
 
   return isBestNeighbor;

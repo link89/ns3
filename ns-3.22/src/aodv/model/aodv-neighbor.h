@@ -38,6 +38,7 @@
 #include "ns3/wifi-mac-header.h"
 #include "ns3/arp-cache.h"
 #include "ns3/vector.h"
+#include "ns3/log.h"
 #include <vector>
 
 namespace ns3
@@ -80,6 +81,16 @@ public:
       m_ipv4Route->SetGateway (ip);
       m_ipv4Route->SetSource (iface.GetLocal ());
       m_ipv4Route->SetOutputDevice (dev);
+    }
+
+    Neighbor(const Neighbor& o)
+    {
+      m_neighborAddress = o.m_neighborAddress;
+      m_hardwareAddress = o.m_hardwareAddress;
+      m_expireTime = o.m_expireTime;
+      close = o.close;
+      m_pos = o.m_pos;
+      m_ipv4Route = o.m_ipv4Route;
     }
   };
   /// Return expire time for neighbor node with address addr, if exists, else return 0.
