@@ -142,7 +142,7 @@ Neighbors::BestNeighbor(Vector2D curPos, Vector2D dstPos, Ptr<Ipv4Route> & ipv4R
 
   if (isBestNeighbor) {
     ipv4Route = bestNeighbor->m_ipv4Route;
-    NS_LOG_DEBUG("best route = " << *ipv4Route << " curDist = " << curDist << " minDist = " << minDist);
+    NS_LOG_DEBUG("greedy forward = " << *ipv4Route << " curDist = " << curDist << " minDist = " << minDist);
   }
 
   return isBestNeighbor;
@@ -152,9 +152,31 @@ bool
 Neighbors::RecoveryNeighbor(Vector2D curPos, Vector2D dstPos, Vector2D failPos,
                             Ptr<Ipv4Route> & ipv4Route)
 {
+  double minDist = std::numeric_limits<double>::max();
+  Neighbor* recoveryNeighbor;
+
+  bool isRecoveryNeighbor = false;
   for (std::vector<Neighbor>::iterator i = m_nb.begin (); i != m_nb.end (); ++i) {
+    //find the nearest right hand neighbor
+    //if (p2 - p0) x (p1 -p0) > 0, then p2 on right side of p0p1
+    //p0 = dstPos, p1 = curPos, p2 = neighbor
+    double s = (i->m_pos.x - dstPos.x) * (curPos.y - dstPos.y) -
+      (curPos.x - dstPos.x) * (i->m_pos.y - dstPos.y);
+    double toDstDist = CalculateDistance(i->m_pos, dstPos);
+
+    if (i->m_ipv4Route && s > 0 && toDstDist < minDist) {
+      isRecoveryNeighbor = true;
+      minDist = toDstDist;
+      recoveryNeighbor = &(*i);
+    }
   }
-  return true;
+
+  if (isRecoveryNeighbor) {
+    ipv4Route = recoveryNeighbor->m_ipv4Route;
+    NS_LOG_DEBUG("recovery forward = " << *ipv4Route << " minDist = " << minDist);
+  }
+
+  return isRecoveryNeighbor;
 }
 
 struct CloseNeighbor

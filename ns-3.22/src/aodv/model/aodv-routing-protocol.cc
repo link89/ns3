@@ -355,7 +355,7 @@ RoutingProtocol::AddPositionHeader (Ptr<Packet> packet,
                                Ipv4Address source, Ipv4Address destination,
                                uint8_t protocol, Ptr<Ipv4Route> route)
 {
-  //1. capture packet from L4; 2. add header;
+  // 1. capture packet from L4; 2. add header;
   NS_LOG_DEBUG("AddPositionHeader");
   bool isBroadcast = false;
   for (uint32_t interface = 0; interface < m_ipv4->GetNInterfaces(); interface++) {
@@ -389,7 +389,7 @@ next:
     NS_LOG_DEBUG("AddPositionHeader success, pos = " << pos << "from src ip = " << source
         << " to dest ip = " << destination << " packet = " << packet);
   }
-  //3. send packet to L3
+  // 3. send packet to L3
   m_downTarget(packet, source, destination, protocol, route);
 }
 
@@ -425,53 +425,70 @@ RoutingProtocol::RouteOutput (Ptr<Packet> p, const Ipv4Header &header,
   sockerr = Socket::ERROR_NOTERROR;
   Ptr<Ipv4Route> route;
   Ipv4Address dst = header.GetDestination ();
-  //gpsr code begin
 
+  // gpsr code begin
   NS_LOG_DEBUG ("RouteOutput packet = " << p);
   Ptr<Packet> packet = p;
   TypeHeader tHeader (GPSRTYPE_POS);
   packet->PeekHeader (tHeader); // read header rather than remove it
 
-  //handle PosHeader only, ignore other types
-  if (tHeader.IsValid ()) {
-    if (tHeader.Get () == GPSRTYPE_POS) {
-      PosHeader posHeader;
-      packet->RemoveHeader(tHeader);
-      packet->RemoveHeader (posHeader);
-      NS_LOG_DEBUG("posHeader:" << posHeader);
+  // handle PosHeader only, ignore other types
+  if (tHeader.IsValid () && (tHeader.Get () == GPSRTYPE_POS)) {
+    PosHeader posHeader;
+    packet->RemoveHeader(tHeader);
+    packet->RemoveHeader (posHeader); //remove type header and pos header
+    NS_LOG_DEBUG("posHeader:" << posHeader);
 
-      // gpsr algorithm runs here ...
-      // 1.Get Current Position
-      Vector2D curPos;
-      NS_ASSERT(m_ipv4);
-      Ptr<MobilityModel> m_mob = m_ipv4->GetObject<MobilityModel> ();
-      if (m_mob) {
-        Vector3D _pos = m_mob->GetPosition();
-        curPos.x = _pos.x;
-        curPos.y = _pos.y;
-      }
+    // gpsr algorithm runs here ...
+    // 1. Get current position
+    Vector2D curPos;
+    NS_ASSERT (m_ipv4);
+    Ptr<MobilityModel> m_mob = m_ipv4->GetObject<MobilityModel> ();
+    NS_ASSERT (m_mob);
+    Vector3D _pos = m_mob->GetPosition();
+    curPos.x = _pos.x;
+    curPos.y = _pos.y;
+    // 2. Get destionation and fail position
+    Vector2D dstPos = posHeader.GetDstPosition();
+    Vector2D failPos = posHeader.GetFailPosition();
 
-      if (posHeader.GetFail()) {
-        // recovery mode
+    if (posHeader.GetFail()) { // recovery mode
+      if (m_nb.BestNeighbor(failPos, dstPos, route)) { // get of out recovery mode
+       posHeader.SetFail(false);
+       NS_LOG_UNCOND("found best neighbor: " << *route);
+        //TODO: add posHeader back after handle routine in RouteInput
 
+       return route;
+      } else if (m_nb.RecoveryNeighbor(curPos, dstPos, failPos, route)) { //recovery forward
+        NS_LOG_UNCOND("found recovery neighbor: " << *route);
+        //TODO: add posHeader back after handle routine in RouteInput
+
+        return route;
       } else {
-        // try greedy forward
-        if (m_nb.BestNeighbor(curPos, posHeader.GetDstPosition(), route)) {
-          NS_LOG_UNCOND("found best neighbor, src = " << route->GetSource() <<
-              " dst = " << route->GetDestination() <<
-              " gw = " << route->GetGateway());
+        NS_LOG_UNCOND("gpsr fail" << *route);
+      }
+    } else { // try greedy forward
+      if (m_nb.BestNeighbor(curPos, dstPos, route)) {
+        NS_LOG_UNCOND("found best neighbor: " << *route);
+        //TODO: add posHeader back after handle routine in RouteInput
+
+        return route;
+      } else { //recovery mode
+        posHeader.SetFail(true);
+        posHeader.SetFailPosition(curPos);
+        if (m_nb.RecoveryNeighbor(curPos, dstPos, curPos, route)) {
+          NS_LOG_UNCOND("found recovery neighbor: " << *route);
           //TODO: add posHeader back after handle routine in RouteInput
 
           return route;
         } else {
-          //recovery mode
-
+          NS_LOG_UNCOND("gpsr fail" << *route);
         }
       }
     }
   }
+  // gpsr code end
 
-  //gpsr code end
   RoutingTableEntry rt;
   if (m_routingTable.LookupValidRoute (dst, rt))
     {
@@ -1812,13 +1829,12 @@ RoutingProtocol::SendHello ()
   //Get Current Position
 
   Vector2D pos;
-  NS_ASSERT(m_ipv4);
+  NS_ASSERT (m_ipv4);
   Ptr<MobilityModel> m_mob = m_ipv4->GetObject<MobilityModel> ();
-  if (m_mob) {
-    Vector3D _pos = m_mob->GetPosition();
-    pos.x = _pos.x;
-    pos.y = _pos.y;
-  }
+  NS_ASSERT (m_mob);
+  Vector3D _pos = m_mob->GetPosition();
+  pos.x = _pos.x;
+  pos.y = _pos.y;
 
   for (std::map<Ptr<Socket>, Ipv4InterfaceAddress>::const_iterator j = m_socketAddresses.begin (); j != m_socketAddresses.end (); ++j)
     {
