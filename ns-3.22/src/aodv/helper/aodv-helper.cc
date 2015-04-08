@@ -26,6 +26,7 @@
 #include "ns3/tcp-l4-protocol.h"
 #include "ns3/udp-l4-protocol.h"
 #include "ns3/icmpv4-l4-protocol.h"
+#include "ns3/node-container.h"
 #include "ns3/log.h"
 
 namespace ns3
@@ -47,26 +48,40 @@ Ptr<Ipv4RoutingProtocol>
 AodvHelper::Create (Ptr<Node> node) const
 {
   Ptr<aodv::RoutingProtocol> agent = m_agentFactory.Create<aodv::RoutingProtocol> ();
-  Ptr<UdpL4Protocol> udp = node->GetObject<UdpL4Protocol> ();
-  if (udp) {
-    NS_LOG_UNCOND("udp");
-    agent->SetDownTarget (udp->GetDownTarget ());
-    udp->SetDownTarget (MakeCallback (&aodv::RoutingProtocol::AddPositionHeader, agent));
-  }
-  Ptr<TcpL4Protocol> tcp = node->GetObject<TcpL4Protocol> ();
-  if (tcp) {
-    NS_LOG_UNCOND("tcp");
-    agent->SetDownTarget (tcp->GetDownTarget ());
-    tcp->SetDownTarget (MakeCallback (&aodv::RoutingProtocol::AddPositionHeader, agent));
-  }
-  Ptr<Icmpv4L4Protocol> icmp = node->GetObject<Icmpv4L4Protocol> ();
-  if (icmp) {
-    NS_LOG_UNCOND("icmp");
-    agent->SetDownTarget (icmp->GetDownTarget ());
-    icmp->SetDownTarget (MakeCallback (&aodv::RoutingProtocol::AddPositionHeader, agent));
-  }
   node->AggregateObject (agent);
   return agent;
+}
+
+void
+AodvHelper::SetDownTarget(NodeContainer nodes)
+{
+  for (NodeContainer::Iterator i = nodes.Begin (); i != nodes.End (); ++i) {
+    Ptr<Ipv4> ipv4 = (*i)->GetObject<Ipv4> ();
+    NS_ASSERT_MSG (ipv4, "Ipv4 not installed on node");
+    Ptr<Ipv4RoutingProtocol> proto = ipv4->GetRoutingProtocol ();
+    NS_ASSERT_MSG (proto, "Ipv4 routing not installed on node");
+    Ptr<aodv::RoutingProtocol> agent = DynamicCast<aodv::RoutingProtocol> (proto);
+    if (agent) {
+      Ptr<UdpL4Protocol> udp = (*i)->GetObject<UdpL4Protocol> ();
+      if (udp) {
+        //NS_LOG_UNCOND ("udp");
+        agent->SetDownTarget (udp->GetDownTarget ());
+        udp->SetDownTarget (MakeCallback (&aodv::RoutingProtocol::AddPositionHeader, agent));
+      }
+      Ptr<TcpL4Protocol> tcp = (*i)->GetObject<TcpL4Protocol> ();
+      if (tcp) {
+        //NS_LOG_UNCOND ("tcp");
+        agent->SetDownTarget (tcp->GetDownTarget ());
+        tcp->SetDownTarget (MakeCallback (&aodv::RoutingProtocol::AddPositionHeader, agent));
+      }
+      Ptr<Icmpv4L4Protocol> icmp = (*i)->GetObject<Icmpv4L4Protocol> ();
+      if (icmp) {
+        //NS_LOG_UNCOND ("icmp");
+        agent->SetDownTarget (icmp->GetDownTarget ());
+        icmp->SetDownTarget (MakeCallback (&aodv::RoutingProtocol::AddPositionHeader, agent));
+      }
+    }
+  }
 }
 
 void 

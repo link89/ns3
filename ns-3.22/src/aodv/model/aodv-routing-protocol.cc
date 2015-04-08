@@ -227,7 +227,7 @@ RoutingProtocol::GetTypeId (void)
                                      &RoutingProtocol::GetMaxQueueTime),
                    MakeTimeChecker ())
     .AddAttribute ("AllowedHelloLoss", "Number of hello messages which may be loss for valid link.",
-                   UintegerValue (2),
+                   UintegerValue (4),
                    MakeUintegerAccessor (&RoutingProtocol::AllowedHelloLoss),
                    MakeUintegerChecker<uint16_t> ())
     .AddAttribute ("GratuitousReply", "Indicates whether a gratuitous RREP should be unicast to the node originated route discovery.",
@@ -340,7 +340,6 @@ RoutingProtocol::GetNodeFromIpv4(Ipv4Address addr)
       for (uint32_t count = 0; count < ipv4->GetNAddresses(interface); count++) {
         Ipv4InterfaceAddress i_addr = ipv4->GetAddress(interface, count);
         Ipv4Address ipv4_addr = i_addr.GetLocal();
-
         if (ipv4_addr == addr) {
           return *i;
         }
@@ -350,44 +349,47 @@ RoutingProtocol::GetNodeFromIpv4(Ipv4Address addr)
   return NULL;
 }
 
+bool
+RoutingProtocol::IsLegal(Ptr<Packet> packet,
+                        Ipv4Address destination)
+{
+  if (destination.IsBroadcast())
+    return false;
+  for (uint32_t interface = 0; interface < m_ipv4->GetNInterfaces(); interface++) {
+    for (uint32_t count = 0; count < m_ipv4->GetNAddresses(interface); count++) {
+      if (destination == m_ipv4->GetAddress(interface, count).GetBroadcast()) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 void
 RoutingProtocol::AddPositionHeader (Ptr<Packet> packet,
                                Ipv4Address source, Ipv4Address destination,
                                uint8_t protocol, Ptr<Ipv4Route> route)
 {
   // 1. capture packet from L4; 2. add header;
-  NS_LOG_DEBUG("AddPositionHeader");
-  bool isBroadcast = false;
-  for (uint32_t interface = 0; interface < m_ipv4->GetNInterfaces(); interface++) {
-    for (uint32_t count = 0; count < m_ipv4->GetNAddresses(interface); count++) {
-      if (destination == m_ipv4->GetAddress(interface, count).GetBroadcast()) {
-        isBroadcast = true;
-        goto next;
-      }
-    }
-  }
-next:
-  if (destination == Ipv4Address("255.255.255.255"))
-      isBroadcast = true;
-
-  if (!isBroadcast) {
-    Vector2D pos;
+  // route already found, there are 3 type of udp->send!!
+  NS_LOG_DEBUG ("Add Position Header enter, packet = " << packet->GetUid());
+  if (!route && IsLegal(packet, destination)) {
     Ptr<Node> dstNode = GetNodeFromIpv4(destination);
-    if (!dstNode)
-      return;
-    Ptr<MobilityModel> dstMob = dstNode->GetObject<MobilityModel> ();
-    NS_ASSERT(dstMob);
-    Vector3D _pos = dstMob->GetPosition();
-    pos.x = _pos.x, pos.y = _pos.y;
+    if (dstNode) {
+      Ptr<MobilityModel> dstMob = dstNode->GetObject<MobilityModel> ();
+      NS_ASSERT(dstMob);
+      Vector2D pos;
+      Vector3D _pos = dstMob->GetPosition();
+      pos.x = _pos.x, pos.y = _pos.y;
 
-    PosHeader posHeader;
-    posHeader.SetBroadcast(isBroadcast);
-    posHeader.SetDstPosition(pos);
-    packet->AddHeader (posHeader);
-    TypeHeader tHeader (GPSRTYPE_POS);
-    packet->AddHeader (tHeader);
-    NS_LOG_DEBUG("AddPositionHeader success, pos = " << pos << "from src ip = " << source
-        << " to dest ip = " << destination << " packet = " << packet);
+      PosHeader posHeader;
+      posHeader.SetDstPosition(pos);
+      packet->AddHeader (posHeader);
+      TypeHeader tHeader (GPSRTYPE_POS);
+      packet->AddHeader (tHeader);
+      NS_LOG_DEBUG ("AddPositionHeader success, pos = " << pos << "from src ip = " << source
+          << " to dest ip = " << destination << " packet = " << packet->GetUid());
+    }
   }
   // 3. send packet to L3
   m_downTarget(packet, source, destination, protocol, route);
@@ -410,6 +412,7 @@ RoutingProtocol::RouteOutput (Ptr<Packet> p, const Ipv4Header &header,
                               Ptr<NetDevice> oif, Socket::SocketErrno &sockerr)
 {
   NS_LOG_FUNCTION (this << header << (oif ? oif->GetIfIndex () : 0));
+  NS_LOG_DEBUG ("RouteOutput enter = " << p->GetUid());
   if (!p)
     {
       NS_LOG_DEBUG("Packet is == 0");
@@ -427,17 +430,16 @@ RoutingProtocol::RouteOutput (Ptr<Packet> p, const Ipv4Header &header,
   Ipv4Address dst = header.GetDestination ();
 
   // gpsr code begin
-  NS_LOG_DEBUG ("RouteOutput packet = " << p);
   Ptr<Packet> packet = p;
   TypeHeader tHeader (GPSRTYPE_POS);
   packet->PeekHeader (tHeader); // read header rather than remove it
 
-  // handle PosHeader only, ignore other types
   if (tHeader.IsValid () && (tHeader.Get () == GPSRTYPE_POS)) {
+    NS_LOG_DEBUG("RouteOutput packet in gpsr = " << p->GetUid());
     PosHeader posHeader;
     packet->RemoveHeader(tHeader);
     packet->RemoveHeader (posHeader); //remove type header and pos header
-    NS_LOG_DEBUG("posHeader:" << posHeader);
+    NS_LOG_DEBUG("get posHeader:" << posHeader);
 
     // gpsr algorithm runs here ...
     // 1. Get current position
@@ -453,36 +455,38 @@ RoutingProtocol::RouteOutput (Ptr<Packet> p, const Ipv4Header &header,
     Vector2D failPos = posHeader.GetFailPosition();
 
     if (posHeader.GetFail()) { // recovery mode
-      if (m_nb.BestNeighbor(failPos, dstPos, route)) { // get of out recovery mode
-       posHeader.SetFail(false);
-       NS_LOG_UNCOND("found best neighbor: " << *route);
-        //TODO: add posHeader back after handle routine in RouteInput
-
-       return route;
+      if (m_nb.BestNeighbor(failPos, dstPos, route)) { // get out of recovery mode
+        posHeader.SetFail(false);
+        NS_LOG_DEBUG ("RouteOutput get out of recovery: " << *route);
+        packet->AddHeader(posHeader);
+        packet->AddHeader(tHeader);
+        return route;
       } else if (m_nb.RecoveryNeighbor(curPos, dstPos, failPos, route)) { //recovery forward
-        NS_LOG_UNCOND("found recovery neighbor: " << *route);
-        //TODO: add posHeader back after handle routine in RouteInput
-
+        NS_LOG_DEBUG ("RouteOutput found recovery neighbor: " << *route);
+        packet->AddHeader(posHeader);
+        packet->AddHeader(tHeader);
         return route;
       } else {
-        NS_LOG_UNCOND("gpsr fail" << *route);
+        NS_LOG_DEBUG ("gpsr fail, fall back to aodv");
+        return route;
       }
     } else { // try greedy forward
       if (m_nb.BestNeighbor(curPos, dstPos, route)) {
-        NS_LOG_UNCOND("found best neighbor: " << *route);
-        //TODO: add posHeader back after handle routine in RouteInput
-
+        NS_LOG_DEBUG ("RouteOutput found best neighbor: " << *route);
+        packet->AddHeader(posHeader);
+        packet->AddHeader(tHeader);
         return route;
       } else { //recovery mode
         posHeader.SetFail(true);
         posHeader.SetFailPosition(curPos);
         if (m_nb.RecoveryNeighbor(curPos, dstPos, curPos, route)) {
-          NS_LOG_UNCOND("found recovery neighbor: " << *route);
-          //TODO: add posHeader back after handle routine in RouteInput
-
+          NS_LOG_DEBUG ("RouteOutput found recovery neighbor: " << *route);
+          packet->AddHeader(posHeader);
+          packet->AddHeader(tHeader);
           return route;
         } else {
-          NS_LOG_UNCOND("gpsr fail" << *route);
+          NS_LOG_DEBUG ("gpsr fail, fall back to aodv");
+          return route;
         }
       }
     }
@@ -547,6 +551,7 @@ RoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv4Header &header,
                              MulticastForwardCallback mcb, LocalDeliverCallback lcb, ErrorCallback ecb)
 {
   NS_LOG_FUNCTION (this << p->GetUid () << header.GetDestination () << idev->GetAddress ());
+  NS_LOG_DEBUG ("RouteIutput packet = " << p->GetUid());
   if (m_socketAddresses.empty ())
     {
       NS_LOG_LOGIC ("No aodv interfaces");
@@ -637,6 +642,20 @@ RoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv4Header &header,
   // Unicast local delivery
   if (m_ipv4->IsDestinationAddress (dst, iif))
     {
+      // gpsr code begin
+      NS_LOG_DEBUG ("RouteIutput packet = " << p->GetUid());
+      TypeHeader tHeader (GPSRTYPE_POS);
+      Ptr<Packet> packet = p->Copy();
+      packet->PeekHeader (tHeader); // read header rather than remove it
+      // handle PosHeader only, ignore other types
+      if (tHeader.IsValid () && (tHeader.Get () == GPSRTYPE_POS)) {
+        PosHeader posHeader;
+        packet->RemoveHeader(tHeader);
+        packet->RemoveHeader (posHeader); //remove type header and pos header
+        NS_LOG_DEBUG ("RouteInput remove posHeader:" << packet->GetUid());
+      }
+      // gpsr code end
+
       UpdateRouteLifeTime (origin, ActiveRouteTimeout);
       RoutingTableEntry toOrigin;
       if (m_routingTable.LookupValidRoute (origin, toOrigin))
@@ -647,12 +666,12 @@ RoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv4Header &header,
       if (lcb.IsNull () == false)
         {
           NS_LOG_LOGIC ("Unicast local delivery to " << dst);
-          lcb (p, header, iif);
+          lcb (packet, header, iif);
         }
       else
         {
           NS_LOG_ERROR ("Unable to deliver packet locally due to null callback " << p->GetUid () << " from " << origin);
-          ecb (p, header, Socket::ERROR_NOROUTETOHOST);
+          ecb (packet, header, Socket::ERROR_NOROUTETOHOST);
         }
       return true;
     }
@@ -668,6 +687,77 @@ RoutingProtocol::Forwarding (Ptr<const Packet> p, const Ipv4Header & header,
   NS_LOG_FUNCTION (this);
   Ipv4Address dst = header.GetDestination ();
   Ipv4Address origin = header.GetSource ();
+
+  // gpsr code begin
+  TypeHeader tHeader (GPSRTYPE_POS);
+  p->PeekHeader (tHeader); // read header rather than remove it
+
+  // handle PosHeader only, ignore other types
+  if (tHeader.IsValid () && (tHeader.Get () == GPSRTYPE_POS)) {
+    NS_LOG_DEBUG("forward packet in gpsr packet = " << p->GetUid());
+    Ptr<Packet> packet = p->Copy(); //copy a packet to modify
+    PosHeader posHeader;
+    packet->RemoveHeader(tHeader);
+    packet->RemoveHeader (posHeader); //remove type header and pos header
+    NS_LOG_DEBUG("posHeader:" << posHeader);
+    Ptr<Ipv4Route> route;
+
+    // gpsr algorithm runs here ...
+    // 1. Get current position
+    Vector2D curPos;
+    NS_ASSERT (m_ipv4);
+    Ptr<MobilityModel> m_mob = m_ipv4->GetObject<MobilityModel> ();
+    NS_ASSERT (m_mob);
+    Vector3D _pos = m_mob->GetPosition();
+    curPos.x = _pos.x;
+    curPos.y = _pos.y;
+    // 2. Get destionation and fail position
+    Vector2D dstPos = posHeader.GetDstPosition();
+    Vector2D failPos = posHeader.GetFailPosition();
+
+    if (posHeader.GetFail()) { // recovery mode
+      if (m_nb.BestNeighbor(failPos, dstPos, route)) { // get out of recovery mode
+       posHeader.SetFail(false);
+       NS_LOG_DEBUG ("Forward get out of recovery: " << *route << " packet = " << packet->GetUid());
+       packet->AddHeader(posHeader);
+       packet->AddHeader(tHeader);
+       ucb (route, packet, header);
+       return true;
+      } else if (m_nb.RecoveryNeighbor(curPos, dstPos, failPos, route)) { //recovery forward
+        NS_LOG_DEBUG ("Forward found recovery neighbor: " << *route << " packet = " << packet->GetUid());
+        packet->AddHeader(posHeader);
+        packet->AddHeader(tHeader);
+        ucb (route, packet, header);
+        return true;
+      } else {
+        NS_LOG_DEBUG ("gpsr fail, fall back to aodv");
+        return false;
+      }
+    } else { // try greedy forward
+      if (m_nb.BestNeighbor(curPos, dstPos, route)) {
+        NS_LOG_DEBUG ("Forward found best neighbor: " << *route << " packet = " << packet->GetUid());
+        packet->AddHeader(posHeader);
+        packet->AddHeader(tHeader);
+        ucb (route, packet, header);
+        return true;
+      } else { //recovery mode
+        posHeader.SetFail(true);
+        posHeader.SetFailPosition(curPos);
+        if (m_nb.RecoveryNeighbor(curPos, dstPos, curPos, route)) {
+          NS_LOG_DEBUG ("Forward found recovery neighbor: " << *route << " packet = " << packet->GetUid());
+          packet->AddHeader(posHeader);
+          packet->AddHeader(tHeader);
+          ucb (route, packet, header);
+          return true;
+        } else {
+          NS_LOG_DEBUG ("gpsr fail, fall back to aodv");
+          return false;
+        }
+      }
+    }
+  }
+  // gpsr code end
+
   m_routingTable.Purge ();
   RoutingTableEntry toDst;
   if (m_routingTable.LookupRoute (dst, toDst))
@@ -1777,15 +1867,16 @@ RoutingProtocol::HelloTimerExpire ()
 {
   NS_LOG_FUNCTION (this);
   Time offset = Time (Seconds (0));
-  if (m_lastBcastTime > Time (Seconds (0)))
-    {
-      offset = Simulator::Now () - m_lastBcastTime;
-      NS_LOG_DEBUG ("Hello deferred due to last bcast at:" << m_lastBcastTime);
-    }
-  else
-    {
-      SendHello ();
-    }
+  //if (m_lastBcastTime > Time (Seconds (0)))
+  //  {
+  //    offset = Simulator::Now () - m_lastBcastTime;
+  //    NS_LOG_DEBUG ("Hello deferred due to last bcast at:" << m_lastBcastTime);
+  //  }
+  //else
+  //  {
+  //    SendHello ();
+  //  }
+  SendHello ();
   m_htimer.Cancel ();
   Time diff = HelloInterval - offset;
   m_htimer.Schedule (std::max (Time (Seconds (0)), diff));

@@ -28,6 +28,7 @@
 #include "ns3/point-to-point-module.h"
 #include "ns3/wifi-module.h" 
 #include "ns3/v4ping-helper.h"
+#include "ns3/applications-module.h"
 #include <iostream>
 #include <cmath>
 
@@ -205,16 +206,34 @@ AodvExample::InstallInternetStack ()
 void
 AodvExample::InstallApplications ()
 {
-  V4PingHelper ping (interfaces.GetAddress (size - 1));
-  ping.SetAttribute ("Verbose", BooleanValue (true));
+  //V4PingHelper ping (interfaces.GetAddress (size - 1));
+  //ping.SetAttribute ("Verbose", BooleanValue (true));
 
-  ApplicationContainer p = ping.Install (nodes.Get (0));
-  p.Start (Seconds (2));
-  p.Stop (Seconds (totalTime) - Seconds (0.001));
+  //ApplicationContainer p = ping.Install (nodes.Get (0));
+  //p.Start (Seconds (0));
+  //p.Stop (Seconds (totalTime) - Seconds (0.001));
+  LogComponentEnable ("OnOffApplication", LOG_LEVEL_INFO);
+  LogComponentEnable ("PacketSink", LOG_LEVEL_INFO);
 
+  PacketSinkHelper sink ("ns3::UdpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), 9));
+  ApplicationContainer apps_sink = sink.Install (nodes.Get (size - 1));
+  apps_sink.Start (Seconds (0));
+  apps_sink.Stop (Seconds (totalTime));
+
+  OnOffHelper onoff1 ("ns3::UdpSocketFactory", Address (InetSocketAddress (interfaces.GetAddress (size - 1), 9)));
+  onoff1.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=1.0]"));
+  onoff1.SetAttribute ("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0.0]"));
+  onoff1.SetAttribute ("PacketSize", UintegerValue (256));
+  onoff1.SetAttribute ("DataRate", DataRateValue (DataRate (std::string("10kbps"))));
+
+  ApplicationContainer apps1 = onoff1.Install (nodes.Get (0));
+  apps1.Start (Seconds (2));
+  apps1.Stop (Seconds (totalTime) - Seconds(0.001));;
+
+  AodvHelper::SetDownTarget(nodes);
   // move node away
-  Ptr<Node> node = nodes.Get (size/2);
-  Ptr<MobilityModel> mob = node->GetObject<MobilityModel> ();
-  Simulator::Schedule (Seconds (totalTime/3), &MobilityModel::SetPosition, mob, Vector (1e5, 1e5, 1e5));
+  //Ptr<Node> node = nodes.Get (size/2);
+  //Ptr<MobilityModel> mob = node->GetObject<MobilityModel> ();
+  //Simulator::Schedule (Seconds (totalTime/3), &MobilityModel::SetPosition, mob, Vector (1e5, 1e5, 1e5));
 }
 

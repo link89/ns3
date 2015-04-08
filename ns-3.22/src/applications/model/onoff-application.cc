@@ -41,6 +41,7 @@
 #include "ns3/udp-socket-factory.h"
 #include "ns3/string.h"
 #include "ns3/pointer.h"
+#include "ns3/ipv4.h"
 
 namespace ns3 {
 
@@ -157,7 +158,12 @@ void OnOffApplication::StartApplication () // Called at time specified by Start
       else if (InetSocketAddress::IsMatchingType (m_peer) ||
                PacketSocketAddress::IsMatchingType (m_peer))
         {
-          m_socket->Bind ();
+          Ptr<Ipv4> ipv4 = m_node->GetObject<Ipv4> ();
+          Ipv4InterfaceAddress ifcAddr = ipv4->GetAddress(1, 0);
+          Ipv4Address ipv4Addr = ifcAddr.GetLocal();
+          InetSocketAddress local = InetSocketAddress(ipv4Addr,
+              InetSocketAddress::ConvertFrom (m_peer).GetPort () );
+          m_socket->Bind (local);
         }
       m_socket->Connect (m_peer);
       m_socket->SetAllowBroadcast (true);

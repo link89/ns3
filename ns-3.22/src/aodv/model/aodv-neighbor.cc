@@ -142,7 +142,7 @@ Neighbors::BestNeighbor(Vector2D curPos, Vector2D dstPos, Ptr<Ipv4Route> & ipv4R
 
   if (isBestNeighbor) {
     ipv4Route = bestNeighbor->m_ipv4Route;
-    NS_LOG_DEBUG("greedy forward = " << *ipv4Route << " curDist = " << curDist << " minDist = " << minDist);
+    NS_LOG_DEBUG ("greedy forward = " << *ipv4Route << " curDist = " << curDist << " minDist = " << minDist);
   }
 
   return isBestNeighbor;

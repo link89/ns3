@@ -74,6 +74,7 @@ public:
    * \return the number of stream indices assigned by this helper
    */
   int64_t AssignStreams (NodeContainer c, int64_t stream);
+  void static SetDownTarget(NodeContainer nodes);
 
 private:
   /** the factory to create AODV routing object */
