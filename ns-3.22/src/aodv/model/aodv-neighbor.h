@@ -97,6 +97,7 @@ public:
   Time GetExpireTime (Ipv4Address addr);
   /// Check that node with address addr  is neighbor
   bool IsNeighbor (Ipv4Address addr);
+  bool IsNeighbor (Ipv4Address addr, Ptr<Ipv4Route> & ipv4Route);
   /// Update expire time for entry with address addr, if it exists, else add new entry
   void Update (Ipv4Address addr, Time expire);
   void Update (Ipv4Address addr, Time expire,

@@ -60,6 +60,22 @@ Neighbors::IsNeighbor (Ipv4Address addr)
   return false;
 }
 
+bool
+Neighbors::IsNeighbor(Ipv4Address addr, Ptr<Ipv4Route> & ipv4Route)
+{
+
+  Purge ();
+  for (std::vector<Neighbor>::const_iterator i = m_nb.begin ();
+       i != m_nb.end (); ++i)
+    {
+      if (i->m_neighborAddress == addr) {
+        ipv4Route = i->m_ipv4Route;
+        return true;
+      }
+    }
+  return false;
+}
+
 Time
 Neighbors::GetExpireTime (Ipv4Address addr)
 {
@@ -123,6 +139,7 @@ Neighbors::Update (Ipv4Address addr, Time expire,
 bool
 Neighbors::BestNeighbor(Vector2D curPos, Vector2D dstPos, Ptr<Ipv4Route> & ipv4Route)
 {
+  Purge ();
   if (m_nb.empty ())
     return false;
 
@@ -152,6 +169,7 @@ bool
 Neighbors::RecoveryNeighbor(Vector2D curPos, Vector2D dstPos, Vector2D failPos,
                             Ptr<Ipv4Route> & ipv4Route)
 {
+  Purge ();
   double minDist = std::numeric_limits<double>::max();
   Neighbor* recoveryNeighbor;
 

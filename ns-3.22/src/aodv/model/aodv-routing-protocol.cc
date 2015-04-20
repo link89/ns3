@@ -430,6 +430,10 @@ RoutingProtocol::RouteOutput (Ptr<Packet> p, const Ipv4Header &header,
   Ipv4Address dst = header.GetDestination ();
 
   // gpsr code begin
+  if (IsNeighbor(dst, route)) {
+    return route;
+  }
+
   Ptr<Packet> packet = p;
   TypeHeader tHeader (GPSRTYPE_POS);
   packet->PeekHeader (tHeader); // read header rather than remove it
@@ -689,6 +693,12 @@ RoutingProtocol::Forwarding (Ptr<const Packet> p, const Ipv4Header & header,
   Ipv4Address origin = header.GetSource ();
 
   // gpsr code begin
+  Ptr<Ipv4Route> route;
+  if (IsNeighbor(dst, route)) {
+    ucb(route, packet, header);
+    return true;
+  }
+
   TypeHeader tHeader (GPSRTYPE_POS);
   p->PeekHeader (tHeader); // read header rather than remove it
 
@@ -700,7 +710,6 @@ RoutingProtocol::Forwarding (Ptr<const Packet> p, const Ipv4Header & header,
     packet->RemoveHeader(tHeader);
     packet->RemoveHeader (posHeader); //remove type header and pos header
     NS_LOG_DEBUG("posHeader:" << posHeader);
-    Ptr<Ipv4Route> route;
 
     // gpsr algorithm runs here ...
     // 1. Get current position
