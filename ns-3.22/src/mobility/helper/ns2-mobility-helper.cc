@@ -813,4 +813,10 @@ Ns2MobilityHelper::Install (void) const
   Install (NodeList::Begin (), NodeList::End ());
 }
 
+void
+Ns2MobilityHelper::Install (NodeContainer c) const
+{
+  Install (c.Begin (), c.End ());
+}
+
 } // namespace ns3

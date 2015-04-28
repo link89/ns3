@@ -430,7 +430,7 @@ RoutingProtocol::RouteOutput (Ptr<Packet> p, const Ipv4Header &header,
   Ipv4Address dst = header.GetDestination ();
 
   // gpsr code begin
-  if (IsNeighbor(dst, route)) {
+  if (m_nb.IsNeighbor(dst, route)) {
     return route;
   }
 
@@ -694,8 +694,8 @@ RoutingProtocol::Forwarding (Ptr<const Packet> p, const Ipv4Header & header,
 
   // gpsr code begin
   Ptr<Ipv4Route> route;
-  if (IsNeighbor(dst, route)) {
-    ucb(route, packet, header);
+  if (m_nb.IsNeighbor(dst, route)) {
+    ucb(route, p, header);
     return true;
   }
 

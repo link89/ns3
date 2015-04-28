@@ -27,6 +27,7 @@
 #include <stdint.h>
 #include "ns3/ptr.h"
 #include "ns3/object.h"
+#include "ns3/node-container.h"
 
 namespace ns3 {
 
@@ -103,6 +104,7 @@ public:
    */
   template <typename T>
   void Install (T begin, T end) const;
+  void Install (NodeContainer c) const;
 private:
   /**
    * \brief a class to hold input objects internally
